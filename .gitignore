@@ -1,0 +1,12 @@
+# IDE files
+*/.vscode/
+*/.idea/
+*/*.suo
+*/*.ntvs*
+*/*.njsproj
+*/*.sln
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
