@@ -1,0 +1,3 @@
+This is a sample file used for validating file transfer between clients.
+It contains multiple lines to ensure chunking works correctly.
+Line 3: End of file.

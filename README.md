@@ -14,9 +14,18 @@ client-server-test-suite/
 │   ├── client_remote.cfg
 │   └── server.cfg
 ├── scripts/                  # PowerShell scripts to automate test runs
-│   ├── run_local_test.ps1
-│   ├── run_remote_test.ps1
-│   └── simulate_loss.ps1
+│   ├── test_smoke_test_local.py
+│   ├── test_smoke_test_remote.py
+│   ├──  test_single_client_chat.py
+│   ├──  test_multi_client_chat.py
+│   ├──  test_file_transfer_basic.py
+│   ├── test_file_transfer_retry_timeout.py
+│   ├──  test_profanity_filter_chat.py
+│   ├── test_client_list_broadcast.py
+│   ├──  test_interaction_gating.py
+│   ├── test_progress_bar_chunked.py
+│   ├──  test_progress_bar.py
+│   └── test_runner.py #to start all the test
 ├── test_cases/               # Markdown test plans (see below)
 │   ├── smoke_test_local.md
 │   ├── smoke_test_remote.md
