@@ -24,7 +24,8 @@ client-server-test-suite/
 │   ├── test_client_list_broadcast.py
 │   ├──  test_interaction_gating.py
 │   ├── test_progress_bar_chunked.py
-│   └── test_progress_bar.py
+│   ├──  test_progress_bar.py
+│   └── test_runner.py #to start all the test
 ├── test_cases/               # Markdown test plans (see below)
 │   ├── smoke_test_local.md
 │   ├── smoke_test_remote.md
