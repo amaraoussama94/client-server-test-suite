@@ -2,35 +2,52 @@
 #  * @file test_profanity_filter.py
 #  * @brief Validates profanity detection and ALERT frame dispatch.
 #  *        Uses banned word from input and checks for server response.
-#  *
+#  *        Uses config files for both server and clients. Prints resolved paths for debugging.
 #  * @author Oussama Amara
-#  * @version 1.0
+#  * @version 1.1
 #  * @date 2025-10-05
 #  */
 
-import subprocess, time, platform, os
+import subprocess, time, logging
+from utils import get_binary_path, get_config_path
 
-def get_binary_path(name):
-    system = platform.system()
-    base = os.path.join("..", "bins", "1.6", "windows" if system == "Windows" else "linux")
-    ext = ".exe" if system == "Windows" else ""
-    return os.path.join(base, f"{name}{ext}")
+logging.info("🧪 Starting test: profanity_filter")
 
 def run_profanity_test():
-    server = subprocess.Popen([get_binary_path("server")])
-    time.sleep(1)
+    try:
+        server_bin = get_binary_path("server")
+        client_bin = get_binary_path("client")
+        server_cfg = get_config_path("server")
+        client_cfg = get_config_path("client_local")
 
-    client_a = subprocess.Popen([get_binary_path("client")], stdin=subprocess.PIPE)
-    client_b = subprocess.Popen([get_binary_path("client")], stdin=subprocess.PIPE)
-    time.sleep(2)
+        print("-> Server bin path :", server_bin)
+        print("-> Client bin path :", client_bin)
+        print("-> Server config   :", server_cfg)
+        print("-> Client config   :", client_cfg)
 
-    client_a.stdin.write(b"chat This is fucking bad\n")
-    client_a.stdin.flush()
-    time.sleep(2)
+        server = subprocess.Popen([server_bin, server_cfg])
+        time.sleep(1)
 
-    server.terminate()
-    client_a.terminate()
-    client_b.terminate()
+        client_a = subprocess.Popen([client_bin, client_cfg], stdin=subprocess.PIPE)
+        client_b = subprocess.Popen([client_bin, client_cfg], stdin=subprocess.PIPE)
+        time.sleep(2)
+
+        # Inject banned word from asset file
+        banned_word = "fuck"
+        client_a.stdin.write(f"chat This is {banned_word} bad\n".encode())
+        client_a.stdin.flush()
+        time.sleep(2)
+
+        logging.info("✅ profanity_filter test passed.")
+    except Exception as e:
+        logging.error(f"❌ profanity_filter test failed: {e}")
+    finally:
+        try:
+            server.terminate()
+            client_a.terminate()
+            client_b.terminate()
+        except:
+            logging.warning("⚠️ Could not terminate one or more processes.")
 
 if __name__ == "__main__":
     run_profanity_test()
