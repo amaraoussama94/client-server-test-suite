@@ -19,14 +19,14 @@
 #  */
 
 import subprocess, time, logging, re, os
-from utils import get_binary_path, get_config_path
+from utils import get_binary_path, get_config_path, clear_logs
 
 logging.info("🧪 Starting test: smoke_remote")
 
 def run_smoke_remote():
     try:
         os.makedirs("logs", exist_ok=True)  # ✅ Ensure logs/ exists
-
+        clear_logs()
         server_bin = get_binary_path("server")
         client_bin = get_binary_path("client")
         server_cfg = get_config_path("server")

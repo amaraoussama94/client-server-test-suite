@@ -1,10 +1,18 @@
 # /**
 #  * @file utils.py
 #  * @brief Shared utility functions for test scripts.
-#  *        Handles OS detection, binary path resolution, dynamic versioning, config pathing, and logging.
+#  *        Handles OS detection, binary path resolution, dynamic versioning, config pathing, logging, and log cleanup.
+#  *        Ensures clean test environments by clearing logs before each run.
+#  *
+#  *        Functions:
+#  *        - get_latest_version(): Detects latest version folder in bins/
+#  *        - get_binary_path(name): Resolves platform-specific binary path
+#  *        - get_config_path(name): Resolves config file path by alias
+#  *        - clear_logs(): Empties logs/ folder before each test
+#  *
 #  * @author Oussama Amara
-#  * @version 2.2
-#  * @date 2025-10-05
+#  * @version 2.3
+#  * @date 2025-10-12
 #  */
 
 import platform, os, re, logging
@@ -67,3 +75,19 @@ def get_config_path(name):
     config_path = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "configs", filename))
     logging.info(f"Resolved config path for '{name}': {config_path}")
     return config_path
+
+def clear_logs():
+    """
+    Clears all files in the logs/ directory to ensure clean test output.
+    Creates the folder if it doesn't exist.
+    """
+    SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+    logs_dir = os.path.join(SCRIPT_DIR, "..", "logs")
+    os.makedirs(logs_dir, exist_ok=True)
+
+    for f in os.listdir(logs_dir):
+        try:
+            os.remove(os.path.join(logs_dir, f))
+            logging.debug(f"Deleted log file: {f}")
+        except Exception as e:
+            logging.warning(f"⚠️ Could not delete log file {f}: {e}")
