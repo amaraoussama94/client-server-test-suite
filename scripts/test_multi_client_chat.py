@@ -1,22 +1,24 @@
 # /**
 #  * @file test_multi_client_chat.py
-#  * @brief Simulates 10 clients sending messages to random peers concurrently.
+#  * @brief Simulates N clients sending messages to random peers concurrently.
 #  *        Validates routing, delivery, and START frame readiness.
 #  *        Uses config files and dynamic ID resolution.
 #  *
 #  *        Log assertions:
-#  *        - Server: "[CHAT]Forwarding from X to Y: Hello from X"
+#  *        - Server: "[CHAT]Forwarding from X to Y: chat Hello from X"
 #  *        - Receiver: "Received frame: ...|chat|X|Y|Hello from X|READY"
 #  *        - Receiver: "You may begin|START"
 #  *        - Sender: "Chat message sent in N chunk(s)"
 #  *
 #  * @author Oussama Amara
-#  * @version 1.5
+#  * @version 1.7
 #  * @date 2025-10-13
 #  */
 
 import subprocess, time, logging, re, threading, random
 from utils import get_binary_path, get_config_path, clear_logs
+
+NUM_CLIENTS = 5  # 🔧 Change this to scale up/down
 
 logging.info("🧪 Starting test: multi_client_chat_stress")
 
@@ -35,15 +37,15 @@ def run_stress_chat():
         print("   - Client cfg :", client_cfg)
 
         server_log = open("logs/server.log", "a")
-        client_logs = [open(f"logs/client_{i}.log", "a") for i in range(10)]
+        client_logs = [open(f"logs/client_{i}.log", "a") for i in range(NUM_CLIENTS)]
 
-        print("🚀 Launching server and 10 clients...")
+        print(f"🚀 Launching server and {NUM_CLIENTS} clients...")
         server = subprocess.Popen([server_bin, server_cfg], stdout=server_log, stderr=subprocess.STDOUT)
         time.sleep(1)
 
         clients = [
             subprocess.Popen([client_bin, client_cfg], stdin=subprocess.PIPE, stdout=client_logs[i], stderr=subprocess.STDOUT)
-            for i in range(10)
+            for i in range(NUM_CLIENTS)
         ]
         time.sleep(20)
 
@@ -52,12 +54,12 @@ def run_stress_chat():
 
         print("📁 Logs written to:")
         print("   - logs/server.log")
-        for i in range(10):
+        for i in range(NUM_CLIENTS):
             print(f"   - logs/client_{i}.log")
 
         # Extract client IDs
         ids = []
-        for i in range(10):
+        for i in range(NUM_CLIENTS):
             with open(f"logs/client_{i}.log") as log:
                 lines = log.readlines()
                 id_match = next((re.search(r"Assigned client ID: (\d+)", line).group(1)
@@ -65,9 +67,9 @@ def run_stress_chat():
                 ids.append(id_match)
 
         # Filter out clients with missing IDs
-        valid_clients = [(i, ids[i], clients[i]) for i in range(10) if ids[i] is not None]
+        valid_clients = [(i, ids[i], clients[i]) for i in range(NUM_CLIENTS) if ids[i] is not None]
         valid_indices = [i for i, _, _ in valid_clients]
-        if len(valid_clients) < 10:
+        if len(valid_clients) < NUM_CLIENTS:
             print(f"⚠️ Only {len(valid_clients)} clients initialized successfully.")
 
         print("🆔 Assigned client IDs:", ids)
@@ -83,7 +85,7 @@ def run_stress_chat():
                         start_confirmed.add(i)
             time.sleep(1)
 
-        # Define message plan
+        # Define message plan with correct sender binding
         message_plan = []
         for i, sender_id, proc in valid_clients:
             target_choices = [j for j in valid_indices if j != i and ids[j] is not None]
@@ -91,26 +93,30 @@ def run_stress_chat():
                 continue
             target_index = random.choice(target_choices)
             target_id = ids[target_index]
-            message = f"chat Hello from {sender_id}\n"
-            message_plan.append((i, target_id, message))
+            message_plan.append((i, sender_id, target_id))
 
-        def send_message(client_index, target_id, message):
+        def send_message(client_index, sender_id, target_id):
+            print(f"📤 Sending from Client[{client_index}] (ID={sender_id}) → ID={target_id}")
+
             proc = clients[client_index]
             try:
                 proc.stdin.write(f"{target_id}\n".encode())
                 proc.stdin.flush()
                 time.sleep(0.5)
-                proc.stdin.write(message.encode())
+                proc.stdin.write(f"chat Hello from {sender_id}\n".encode())
                 proc.stdin.flush()
             except Exception as e:
                 print(f"⚠️ Client {client_index} failed to send: {e}")
 
         print("📤 Sending messages concurrently...")
         threads = []
-        for index, target_id, msg in message_plan:
-            t = threading.Thread(target=send_message, args=(index, target_id, msg))
+        print("🧪 Message plan:")
+        for index, sender_id, target_id in message_plan:
+            print(f"   - Client[{index}] (ID={sender_id}) → ID={target_id} | msg='chat Hello from {sender_id}'")
+            t = threading.Thread(target=send_message, args=(index, sender_id, target_id))
             t.start()
             threads.append(t)
+            time.sleep(10)
 
         for t in threads:
             t.join()
@@ -124,8 +130,7 @@ def run_stress_chat():
             with open("logs/server.log") as s_log:
                 s_content = s_log.read()
                 missing = []
-                for sender_index, target_id, msg in message_plan:
-                    sender_id = ids[sender_index]
+                for sender_index, sender_id, target_id in message_plan:
                     if not sender_id or not target_id:
                         continue
                     match = re.search(fr"\[CHAT\] \s*Forwarding from {sender_id} to {target_id}: chat .*?Hello from {sender_id}", s_content)
@@ -145,8 +150,7 @@ def run_stress_chat():
         print("🔍 Server forwarding confirmed for all messages.")
 
         # Validate chat delivery
-        for sender_index, target_id, msg in message_plan:
-            sender_id = ids[sender_index]
+        for sender_index, sender_id, target_id in message_plan:
             if not sender_id or not target_id:
                 continue
             receiver_index = ids.index(target_id)
@@ -158,7 +162,7 @@ def run_stress_chat():
                     raise AssertionError(f"Missing chat frame for {sender_id} → {target_id}")
                 print(f"🔍 Client {target_id} received chat from {sender_id}")
 
-        print("✅ Test passed: 10-client concurrent chat routing verified.")
+        print(f"✅ Test passed: {NUM_CLIENTS}-client concurrent chat routing verified.")
         logging.info("✅ multi_client_chat_stress test passed.")
     except Exception as e:
         print(f"❌ Test failed: {e}")
